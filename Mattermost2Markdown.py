@@ -21,6 +21,9 @@ SKIPPED_CHANNELS = ["<display name of ignored channels>", "<or channels IDs>"]
 ONLY_USERS = [] # ["<user names whose DMs are downloaded>", "<or user IDs>"]
 ONLY_CHANNELS = [] # ["<display name of downloaded channels>", "<or channels IDs>"]
 
+# Channel ID to resume downloads from in case of failures.
+RESUME_FROM_ID = ""
+
 DEFAULT_TIMEOUT = 15
 
 # array of known users to translate usernames into real names
@@ -146,6 +149,8 @@ if __name__ == "__main__":
     teams = get_json_request("teams")
     [team] = [team for team in teams if team['name'] == TEAM]
 
+    found_first = False
+
     my_channels = get_json_request(f"users/{me['id']}/teams/{team['id']}/channels")
     for channel in my_channels:
         name = channel['name']
@@ -171,9 +176,12 @@ if __name__ == "__main__":
             continue
 
         if (name in SKIPPED_CHANNELS or channel['id'] in SKIPPED_CHANNELS or
-            (ONLY_CHANNELS and channel['id'] not in ONLY_CHANNELS and name not in ONLY_CHANNELS)):
+            (ONLY_CHANNELS and channel['id'] not in ONLY_CHANNELS and name not in ONLY_CHANNELS) or
+            (RESUME_FROM_ID and not found_first and channel['id'] != RESUME_FROM_ID)):
             print(f"Skipping channel {name} ({channel['id']}) ({channel['total_msg_count']})")
             continue
+
+        found_first = True
 
         print(f"Processing {name} ({channel['id']}) ({channel['total_msg_count']})")
         mattermost_channel_content_to_markdown(channel['id'], name)
