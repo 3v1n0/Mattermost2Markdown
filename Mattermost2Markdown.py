@@ -15,6 +15,9 @@ SESSION_TOKEN       = "<your personal session token>"
 TEAM                = "<your team>"
 USER_NAME           = "<your user name>"
 
+SKIPPED_DMS_USERS = ["<user names to ignore in direct messages>", "<or user IDs>"]
+SKIPPED_CHANNELS = ["<display name of ignored channels>", "<or channels IDs>"]
+
 DEFAULT_TIMEOUT = 15
 
 # array of known users to translate usernames into real names
@@ -152,11 +155,19 @@ if __name__ == "__main__":
             user = get_json_request(f"/users/{user_id}")
             name = get_user_display_name(user)
             known_users[user_id] = name
+
+            if user['username'] in SKIPPED_DMS_USERS or user['id'] in SKIPPED_DMS_USERS:
+                print(f"Skipping user {name} ({channel['id']}) ({channel['total_msg_count']})")
+                continue
         elif channel['display_name']:
             name = channel['display_name']
 
         if not name.strip():
             print(f"Skipping ({channel['id']}) ({channel['total_msg_count']})")
+            continue
+
+        if name in SKIPPED_CHANNELS or channel['id'] in SKIPPED_CHANNELS:
+            print(f"Skipping channel {name} ({channel['id']}) ({channel['total_msg_count']})")
             continue
 
         print(f"Processing {name} ({channel['id']}) ({channel['total_msg_count']})")
