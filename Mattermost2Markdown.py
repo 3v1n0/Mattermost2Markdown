@@ -9,6 +9,8 @@ import requests, json, os, time, datetime
 
 from zoneinfo import ZoneInfo
 
+DEFAULT_TIMEOUT = 15
+
 # array of known users to translate usernames into real names
 known_users = {}
 
@@ -42,7 +44,8 @@ def mattermost_channel_content_to_markdown(url, token, channel_id, output_folder
 
         while True:
             # get messages from API
-            response = requests.get(f"{url}/channels/{channel_id}/posts?page={page}&per_page={per_page}", headers=headers)
+            response = requests.get(f"{url}/channels/{channel_id}/posts?page={page}&per_page={per_page}",
+                                    headers=headers, timeout=DEFAULT_TIMEOUT)
             posts = json.loads(response.text)   # convert into json format
 
             # break if there are no more messages in API response
@@ -93,7 +96,8 @@ def mattermost_channel_content_to_markdown(url, token, channel_id, output_folder
 
                     try:
                         # download attachment and save it to given folder
-                        response = requests.get(file_url, headers=headers, stream=True)
+                        response = requests.get(file_url, headers=headers,
+                                                stream=True, timeout=DEFAULT_TIMEOUT)
                         with open(file_path, 'wb') as out_file:
                             for chunk in response.iter_content(1024):
                                 out_file.write(chunk)
