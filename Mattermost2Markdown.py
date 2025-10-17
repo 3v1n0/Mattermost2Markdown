@@ -2,7 +2,7 @@
 project:    Mattermost2Markdown
 authors:    Simon Eller, Marco Trevisan
 license:    MIT
-repo:       https://github.com/simon-eller/Mattermost2Markdown
+repo:       https://github.com/3v1n0/Mattermost2Markdown
 """
 
 import requests, json, os, time, datetime
