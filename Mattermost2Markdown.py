@@ -12,7 +12,8 @@ from zoneinfo import ZoneInfo
 # INSERT YOUR DATA HERE
 MATTERMOST_SERVER   = "<server hostname>"
 SESSION_TOKEN       = "<your personal session token>"
-CHANNELS            = ["<id of channel 1>","<id of channel 2>"]
+TEAM                = "<your team>"
+USER_NAME           = "<your user name>"
 
 DEFAULT_TIMEOUT = 15
 
@@ -127,6 +128,36 @@ def get_user_display_name(user):
     return f"{name} ({user['username']})"
 
 
-# download every channel of the list channels
-for channel_id in CHANNELS:
-    mattermost_channel_content_to_markdown(channel_id, channel_id)
+if __name__ == "__main__":
+    me = get_json_request(f"users/username/{USER_NAME}")
+
+    my_timezone = me["timezone"]
+    if my_timezone["useAutomaticTimezone"] and my_timezone["automaticTimezone"]:
+        zone_info = ZoneInfo(my_timezone["automaticTimezone"])
+    elif my_timezone["manualTimezone"]:
+        zone_info = ZoneInfo(my_timezone["manualTimezone"])
+
+    teams = get_json_request("teams")
+    [team] = [team for team in teams if team['name'] == TEAM]
+
+    my_channels = get_json_request(f"users/{me['id']}/teams/{team['id']}/channels")
+    for channel in my_channels:
+        name = channel['name']
+
+        if not channel['total_msg_count']:
+            continue
+
+        if channel['type'] == 'D':
+            user_id = channel['name'].split('__')[-1]
+            user = get_json_request(f"/users/{user_id}")
+            name = get_user_display_name(user)
+            known_users[user_id] = name
+        elif channel['display_name']:
+            name = channel['display_name']
+
+        if not name.strip():
+            print(f"Skipping ({channel['id']}) ({channel['total_msg_count']})")
+            continue
+
+        print(f"Processing {name} ({channel['id']}) ({channel['total_msg_count']})")
+        mattermost_channel_content_to_markdown(channel['id'], name)
