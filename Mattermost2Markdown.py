@@ -1,6 +1,6 @@
 """
 project:    Mattermost2Markdown
-author:     Simon Eller
+authors:    Simon Eller, Marco Trevisan
 license:    MIT
 repo:       https://github.com/simon-eller/Mattermost2Markdown
 """
