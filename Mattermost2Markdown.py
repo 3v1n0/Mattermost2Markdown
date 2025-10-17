@@ -7,8 +7,12 @@ repo:       https://github.com/simon-eller/Mattermost2Markdown
 
 import requests, json, os, time, datetime
 
+from zoneinfo import ZoneInfo
+
 # array of known users to translate usernames into real names
 known_users = {}
+
+zone_info = ZoneInfo("Europe/Rome")
 
 def mattermost_channel_content_to_markdown(url, token, channel_id, output_folder):
     """
@@ -62,10 +66,8 @@ def mattermost_channel_content_to_markdown(url, token, channel_id, output_folder
             post = channel_posts[post_id]
 
             # convert UNIX timestamp into datetime format
-            post_time = datetime.datetime.fromtimestamp(int(post['create_at'])/1000, datetime.timezone.utc)
-
-            # shift from UTC to CET -> change hours to achieve different timezone
-            post_time_timezonecorrected = (post_time + datetime.timedelta(hours=1)).strftime('%d.%m.%Y %H:%M:%S')
+            local_time = datetime.datetime.fromtimestamp(int(post['create_at'])/1000,
+                                                         zone_info)
 
             # if id of the user of current message is not assigned already to a real name
             if post['user_id'] not in known_users:
@@ -75,7 +77,7 @@ def mattermost_channel_content_to_markdown(url, token, channel_id, output_folder
                 known_users[post['user_id']] = get_user_display_name(user)
 
             # write message to Markdown
-            f.write(f"**{known_users[post['user_id']]}** ({post_time_timezonecorrected}):\n")
+            f.write(f"**{known_users[post['user_id']]}** ({local_time}):\n")
             f.write(post['message'] + '\n')
 
             # download attachments
