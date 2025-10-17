@@ -9,6 +9,11 @@ import requests, json, os, time, datetime
 
 from zoneinfo import ZoneInfo
 
+# INSERT YOUR DATA HERE
+MATTERMOST_SERVER   = "<server hostname>"
+SESSION_TOKEN       = "<your personal session token>"
+CHANNELS            = ["<id of channel 1>","<id of channel 2>"]
+
 DEFAULT_TIMEOUT = 15
 
 # array of known users to translate usernames into real names
@@ -16,20 +21,14 @@ known_users = {}
 
 zone_info = ZoneInfo("Europe/Rome")
 
-def mattermost_channel_content_to_markdown(url, token, channel_id, output_folder):
+def mattermost_channel_content_to_markdown(channel_id, output_folder):
     """
     This function exports every message including attachments of a given Mattermost channel.
 
     Args:
-        url: the url of your Mattermost server API
-        token: your personal API session token
         channel_id: the id of the channel you want to export
         output_folder: the path to store the final Markdown file and attachments
     """
-
-    headers = {
-        "Authorization": "Bearer " + token
-    }
 
     # create the chat.md Markdown file in the given folder
     output_file = output_folder + "/chat.md"
@@ -44,9 +43,7 @@ def mattermost_channel_content_to_markdown(url, token, channel_id, output_folder
 
         while True:
             # get messages from API
-            response = requests.get(f"{url}/channels/{channel_id}/posts?page={page}&per_page={per_page}",
-                                    headers=headers, timeout=DEFAULT_TIMEOUT)
-            posts = json.loads(response.text)   # convert into json format
+            posts = get_json_request(f"channels/{channel_id}/posts?page={page}&per_page={per_page}")
 
             # break if there are no more messages in API response
             if not posts["order"]:
@@ -75,8 +72,7 @@ def mattermost_channel_content_to_markdown(url, token, channel_id, output_folder
             # if id of the user of current message is not assigned already to a real name
             if post['user_id'] not in known_users:
                 # get user information
-                response = requests.get(f"{url}/users/{post['user_id']}", headers=headers)
-                user = json.loads(response.text)
+                user = get_json_request(f"users/{post['user_id']}")
                 known_users[post['user_id']] = get_user_display_name(user)
 
             # write message to Markdown
@@ -87,7 +83,7 @@ def mattermost_channel_content_to_markdown(url, token, channel_id, output_folder
             if 'files' in post["metadata"]:
                 for file_info in post['metadata']["files"]:
                     file_id = file_info['id']
-                    file_url = f"{url}/files/{file_id}"
+                    file_url = f"files/{file_id}"
                     file_extension = file_info['extension']
                     file_name = file_id + "." + file_extension
                     file_path = output_folder + "/" + file_name
@@ -96,8 +92,7 @@ def mattermost_channel_content_to_markdown(url, token, channel_id, output_folder
 
                     try:
                         # download attachment and save it to given folder
-                        response = requests.get(file_url, headers=headers,
-                                                stream=True, timeout=DEFAULT_TIMEOUT)
+                        response = get_request(file_url, stream=True)
                         with open(file_path, 'wb') as out_file:
                             for chunk in response.iter_content(1024):
                                 out_file.write(chunk)
@@ -116,15 +111,22 @@ def mattermost_channel_content_to_markdown(url, token, channel_id, output_folder
             f.write("\n\n")     # line break
 
 
+def get_request(api_req, **kwargs):
+    headers = {
+        "Authorization": "Bearer " + SESSION_TOKEN
+    }
+
+    return requests.get(f"https://{MATTERMOST_SERVER}/api/v4/{api_req}",
+                        headers=headers, timeout=DEFAULT_TIMEOUT, *kwargs)
+
+def get_json_request(api_req):
+    return json.loads(get_request(api_req).text)
+
 def get_user_display_name(user):
     name = f"{user['first_name']} {user['last_name']}".strip()
     return f"{name} ({user['username']})"
 
-# INSERT YOUR DATA HERE
-mattermost_server   = "https://<url to your Mattermost server>/api/v4"
-session_token       = "<your personal session token>"
-channels            = ["<id of channel 1>","<id of channel 2>"]
 
 # download every channel of the list channels
-for channel in channels:
-    mattermost_channel_content_to_markdown(mattermost_server, session_token, channel, channel)
+for channel_id in CHANNELS:
+    mattermost_channel_content_to_markdown(channel_id, channel_id)
