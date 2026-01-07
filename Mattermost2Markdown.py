@@ -159,8 +159,10 @@ if __name__ == "__main__":
             continue
 
         if channel['type'] == 'D':
-            user_id = channel['name'].split('__')[-1]
-            user = get_json_request(f"/users/{user_id}")
+            parts = channel['name'].split('__')
+            user_id = parts[0] if parts[1] == me['id'] else parts[1]
+
+            user = get_json_request(f"users/{user_id}")
             name = get_user_display_name(user)
             known_users[user_id] = name
 
