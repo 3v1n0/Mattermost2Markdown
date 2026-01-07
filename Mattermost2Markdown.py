@@ -17,8 +17,8 @@ SESSION_TOKEN       = "<your personal session token>"
 TEAM                = "<your team>"
 USER_NAME           = "<your user name>"
 
-SKIPPED_DMS_USERS = ["<user names to ignore in direct messages>", "<or user IDs>"]
-SKIPPED_CHANNELS = ["<display name of ignored channels>", "<or channels IDs>"]
+SKIPPED_DMS_USERS = [] # "<user names to ignore in direct messages>", "<or user IDs>"]
+SKIPPED_CHANNELS = [] # "<display name of ignored channels>", "<or channels IDs>"]
 
 ONLY_USERS = [] # ["<user names whose DMs are downloaded>", "<or user IDs>"]
 ONLY_CHANNELS = [] # ["<display name of downloaded channels>", "<or channels IDs>"]
