@@ -179,11 +179,6 @@ if __name__ == "__main__":
             user = get_json_request(f"users/{user_id}")
             name = get_user_display_name(user)
             known_users[user_id] = name
-
-            if (user['username'] in SKIPPED_DMS_USERS or user['id'] in SKIPPED_DMS_USERS or
-                (ONLY_USERS and user['id'] not in ONLY_USERS and user['username'] not in ONLY_USERS)):
-                print(f"Skipping user {name} ({channel['id']}) ({channel['total_msg_count']})")
-                continue
         elif channel['display_name']:
             name = channel['display_name']
 
@@ -191,9 +186,18 @@ if __name__ == "__main__":
             print(f"Skipping ({channel['id']}) ({channel['total_msg_count']})")
             continue
 
-        if (name in SKIPPED_CHANNELS or channel['id'] in SKIPPED_CHANNELS or
+        # Consider channel types D (direct) and G (group) for users rules
+        if (channel['type'] in ['D', 'G'] and
+            (user['username'] in SKIPPED_DMS_USERS or user['id'] in SKIPPED_DMS_USERS or
+            (ONLY_USERS and user['id'] not in ONLY_USERS and user['username'] not in ONLY_USERS))):
+            print(f"Skipping user {name} ({channel['id']}) ({channel['total_msg_count']})")
+            continue
+
+        # Consider channel types O (open) and P (private) for groups rules
+        if (channel['type'] in ['O', 'P'] and
+            (name in SKIPPED_CHANNELS or channel['id'] in SKIPPED_CHANNELS or
             (ONLY_CHANNELS and channel['id'] not in ONLY_CHANNELS and name not in ONLY_CHANNELS) or
-            (RESUME_FROM_ID and not found_first and channel['id'] != RESUME_FROM_ID)):
+            (RESUME_FROM_ID and not found_first and channel['id'] != RESUME_FROM_ID))):
             print(f"Skipping channel {name} ({channel['id']}) ({channel['total_msg_count']})")
             continue
 
