@@ -73,11 +73,8 @@ def mattermost_channel_content_to_markdown(channel_id, output_folder):
             if not posts["order"]:
                 break
 
-            for post in posts["posts"]:
-                channel_posts.update(posts['posts'])
-
-            for post_id in posts["order"]:
-                channel_posts_ids.append(post_id)
+            channel_posts.update(posts['posts'])
+            channel_posts_ids.extend(posts["order"])
 
             page += 1               # next page
             print(f"\rGot {len(channel_posts_ids)} messages", end="")
