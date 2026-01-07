@@ -7,6 +7,7 @@ repo:       https://github.com/3v1n0/Mattermost2Markdown
 
 import requests, json, os, time, datetime
 
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 # INSERT YOUR DATA HERE
@@ -27,6 +28,9 @@ ONLY_CHANNELS = [] # ["<display name of downloaded channels>", "<or channels IDs
 RESUME_FROM_ID = ""
 
 DEFAULT_TIMEOUT = 15
+
+# Allow defining another directory to download
+DOWNLOAD = Path("")
 
 # array of known users to translate usernames into real names
 USERS_CACHE_FILE = "known_users.json"
@@ -55,7 +59,7 @@ def mattermost_channel_content_to_markdown(channel_id, output_folder):
     """
 
     # create the chat.md Markdown file in the given folder
-    output_file = output_folder + "/chat.md"
+    output_file = output_folder / "chat.md"
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
     # open the Markdown file to write into it
@@ -113,7 +117,7 @@ def mattermost_channel_content_to_markdown(channel_id, output_folder):
                     file_url = f"files/{file_id}"
                     file_extension = file_info['extension']
                     file_name = file_id + "." + file_extension
-                    file_path = output_folder + "/" + file_name
+                    file_path = output_folder / file_name
 
                     image_extensions = ["jpg","jpeg","png","gif","heic","heif","tiff","webp"]
 
@@ -208,4 +212,4 @@ if __name__ == "__main__":
         found_first = True
 
         print(f"Processing {name} ({channel['id']}) ({channel['total_msg_count']})")
-        mattermost_channel_content_to_markdown(channel['id'], name)
+        mattermost_channel_content_to_markdown(channel['id'], DOWNLOAD / name)
