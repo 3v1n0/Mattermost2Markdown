@@ -27,7 +27,19 @@ RESUME_FROM_ID = ""
 DEFAULT_TIMEOUT = 15
 
 # array of known users to translate usernames into real names
-known_users = {}
+USERS_CACHE_FILE = "known_users.json"
+
+def load_known_users():
+    if os.path.exists(USERS_CACHE_FILE):
+        with open(USERS_CACHE_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {}
+
+def save_known_users(users):
+    with open(USERS_CACHE_FILE, 'w', encoding='utf-8') as f:
+        json.dump(users, f, ensure_ascii=False, indent=4)
+
+known_users = load_known_users()
 
 zone_info = ZoneInfo("Europe/Rome")
 
@@ -119,7 +131,7 @@ def mattermost_channel_content_to_markdown(channel_id, output_folder):
                         print(f"Error while downloading {file_url}: {e}")
 
             f.write("\n\n")     # line break
-
+        save_known_users(known_users)
 
 def get_request(api_req, **kwargs):
     headers = {
