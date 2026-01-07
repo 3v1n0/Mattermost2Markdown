@@ -10,6 +10,8 @@ import requests, json, os, time, datetime
 from zoneinfo import ZoneInfo
 
 # INSERT YOUR DATA HERE
+# The server URL format is: https://MATTERMOST_SERVER/TEAM/...
+# the MMAUTHTOKEN cookie can be used as SESSION_TOKEN
 MATTERMOST_SERVER   = "<server hostname>"
 SESSION_TOKEN       = "<your personal session token>"
 TEAM                = "<your team>"
