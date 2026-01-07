@@ -80,14 +80,20 @@ def mattermost_channel_content_to_markdown(channel_id, output_folder):
                 channel_posts_ids.append(post_id)
 
             page += 1               # next page
+            print(f"\rGot {len(channel_posts_ids)} messages", end="")
             time.sleep(1)           # a little break to not overcharge the server
 
         channel_posts_ids.reverse()
+        total_messages = len(channel_posts_ids)
 
         # a new entry for every message in the Markdown file; the correct order of posts is stored in a list
-        for post_id in channel_posts_ids:
+        for index, post_id in enumerate(channel_posts_ids, 1):
             # encapsulate the array for the current message
             post = channel_posts[post_id]
+
+            if index % 10 == 0 or index == total_messages:
+                percent = (index / total_messages) * 100
+                print(f"\rWriting : [{index}/{total_messages}] {percent:.1f}%", end="")
 
             # convert UNIX timestamp into datetime format
             local_time = datetime.datetime.fromtimestamp(int(post['create_at'])/1000,
@@ -134,6 +140,7 @@ def mattermost_channel_content_to_markdown(channel_id, output_folder):
 
             f.write("\n\n")     # line break
         save_known_users(known_users)
+        print()
 
 def get_request(api_req, **kwargs):
     headers = {
