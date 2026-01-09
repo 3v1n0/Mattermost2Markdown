@@ -7,16 +7,19 @@ repo:       https://github.com/3v1n0/Mattermost2Markdown
 
 import requests, json, os, time, datetime
 
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 # INSERT YOUR DATA HERE
+# The server URL format is: https://MATTERMOST_SERVER/TEAM/...
+# the MMAUTHTOKEN cookie can be used as SESSION_TOKEN
 MATTERMOST_SERVER   = "<server hostname>"
 SESSION_TOKEN       = "<your personal session token>"
 TEAM                = "<your team>"
 USER_NAME           = "<your user name>"
 
-SKIPPED_DMS_USERS = ["<user names to ignore in direct messages>", "<or user IDs>"]
-SKIPPED_CHANNELS = ["<display name of ignored channels>", "<or channels IDs>"]
+SKIPPED_DMS_USERS = [] # "<user names to ignore in direct messages>", "<or user IDs>"]
+SKIPPED_CHANNELS = [] # "<display name of ignored channels>", "<or channels IDs>"]
 
 ONLY_USERS = [] # ["<user names whose DMs are downloaded>", "<or user IDs>"]
 ONLY_CHANNELS = [] # ["<display name of downloaded channels>", "<or channels IDs>"]
@@ -26,8 +29,23 @@ RESUME_FROM_ID = ""
 
 DEFAULT_TIMEOUT = 15
 
+# Allow defining another directory to download
+DOWNLOAD = Path("")
+
 # array of known users to translate usernames into real names
-known_users = {}
+USERS_CACHE_FILE = "known_users.json"
+
+def load_known_users():
+    if os.path.exists(USERS_CACHE_FILE):
+        with open(USERS_CACHE_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {}
+
+def save_known_users(users):
+    with open(USERS_CACHE_FILE, 'w', encoding='utf-8') as f:
+        json.dump(users, f, ensure_ascii=False, indent=4)
+
+known_users = load_known_users()
 
 zone_info = ZoneInfo("Europe/Rome")
 
@@ -41,7 +59,7 @@ def mattermost_channel_content_to_markdown(channel_id, output_folder):
     """
 
     # create the chat.md Markdown file in the given folder
-    output_file = output_folder + "/chat.md"
+    output_file = output_folder / "chat.md"
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
     # open the Markdown file to write into it
@@ -59,21 +77,24 @@ def mattermost_channel_content_to_markdown(channel_id, output_folder):
             if not posts["order"]:
                 break
 
-            for post in posts["posts"]:
-                channel_posts.update(posts['posts'])
-
-            for post_id in posts["order"]:
-                channel_posts_ids.append(post_id)
+            channel_posts.update(posts['posts'])
+            channel_posts_ids.extend(posts["order"])
 
             page += 1               # next page
+            print(f"\rGot {len(channel_posts_ids)} messages", end="")
             time.sleep(1)           # a little break to not overcharge the server
 
         channel_posts_ids.reverse()
+        total_messages = len(channel_posts_ids)
 
         # a new entry for every message in the Markdown file; the correct order of posts is stored in a list
-        for post_id in channel_posts_ids:
+        for index, post_id in enumerate(channel_posts_ids, 1):
             # encapsulate the array for the current message
             post = channel_posts[post_id]
+
+            if index % 10 == 0 or index == total_messages:
+                percent = (index / total_messages) * 100
+                print(f"\rWriting : [{index}/{total_messages}] {percent:.1f}%", end="")
 
             # convert UNIX timestamp into datetime format
             local_time = datetime.datetime.fromtimestamp(int(post['create_at'])/1000,
@@ -96,7 +117,7 @@ def mattermost_channel_content_to_markdown(channel_id, output_folder):
                     file_url = f"files/{file_id}"
                     file_extension = file_info['extension']
                     file_name = file_id + "." + file_extension
-                    file_path = output_folder + "/" + file_name
+                    file_path = output_folder / file_name
 
                     image_extensions = ["jpg","jpeg","png","gif","heic","heif","tiff","webp"]
 
@@ -119,7 +140,8 @@ def mattermost_channel_content_to_markdown(channel_id, output_folder):
                         print(f"Error while downloading {file_url}: {e}")
 
             f.write("\n\n")     # line break
-
+        save_known_users(known_users)
+        print()
 
 def get_request(api_req, **kwargs):
     headers = {
@@ -159,15 +181,12 @@ if __name__ == "__main__":
             continue
 
         if channel['type'] == 'D':
-            user_id = channel['name'].split('__')[-1]
-            user = get_json_request(f"/users/{user_id}")
+            parts = channel['name'].split('__')
+            user_id = parts[0] if parts[1] == me['id'] else parts[1]
+
+            user = get_json_request(f"users/{user_id}")
             name = get_user_display_name(user)
             known_users[user_id] = name
-
-            if (user['username'] in SKIPPED_DMS_USERS or user['id'] in SKIPPED_DMS_USERS or
-                (ONLY_USERS and user['id'] not in ONLY_USERS and user['username'] not in ONLY_USERS)):
-                print(f"Skipping user {name} ({channel['id']}) ({channel['total_msg_count']})")
-                continue
         elif channel['display_name']:
             name = channel['display_name']
 
@@ -175,13 +194,22 @@ if __name__ == "__main__":
             print(f"Skipping ({channel['id']}) ({channel['total_msg_count']})")
             continue
 
-        if (name in SKIPPED_CHANNELS or channel['id'] in SKIPPED_CHANNELS or
+        # Consider channel types D (direct) and G (group) for users rules
+        if (channel['type'] in ['D', 'G'] and
+            (user['username'] in SKIPPED_DMS_USERS or user['id'] in SKIPPED_DMS_USERS or
+            (ONLY_USERS and user['id'] not in ONLY_USERS and user['username'] not in ONLY_USERS))):
+            print(f"Skipping user {name} ({channel['id']}) ({channel['total_msg_count']})")
+            continue
+
+        # Consider channel types O (open) and P (private) for groups rules
+        if (channel['type'] in ['O', 'P'] and
+            (name in SKIPPED_CHANNELS or channel['id'] in SKIPPED_CHANNELS or
             (ONLY_CHANNELS and channel['id'] not in ONLY_CHANNELS and name not in ONLY_CHANNELS) or
-            (RESUME_FROM_ID and not found_first and channel['id'] != RESUME_FROM_ID)):
+            (RESUME_FROM_ID and not found_first and channel['id'] != RESUME_FROM_ID))):
             print(f"Skipping channel {name} ({channel['id']}) ({channel['total_msg_count']})")
             continue
 
         found_first = True
 
         print(f"Processing {name} ({channel['id']}) ({channel['total_msg_count']})")
-        mattermost_channel_content_to_markdown(channel['id'], name)
+        mattermost_channel_content_to_markdown(channel['id'], DOWNLOAD / name)
